@@ -5,29 +5,17 @@ class Vector {
     this.y = y;
   }
   plus(vect) {
-    if (vect instanceof Vector === false) {
+    if (!(vect instanceof Vector)) {
       throw new Error(`Можно прибавлять к вектору только вектор типа Vector`);
     }
-    let vectorPlus = new Vector();
-    vectorPlus.x = this.x + vect.x;
-    vectorPlus.y = this.y + vect.y;
-    return vectorPlus;
+    return new Vector(this.x + vect.x, this.y + vect.y);
   }
+
   times(factor) {
-    let vectorTimes = new Vector();
-    vectorTimes.x = this.x * factor;
-    vectorTimes.y = this.y * factor;
-    return vectorTimes;
+    return new Vector(this.x * factor, this.y * factor);;
   }
 }
-const start = new Vector(30, 50);
-const moveTo = new Vector(5, 10);
-const finish = start.plus(moveTo.times(2));
-
-console.log(`Исходное расположение: ${start.x}:${start.y}`);
-console.log(`Текущее расположение: ${finish.x}:${finish.y}`);
 //////////////////////////////////////////////////////////////////
-
 class Actor {
   constructor(
     pos = new Vector(0, 0),
@@ -79,35 +67,8 @@ class Actor {
     );
   }
 }
-// const items = new Map();
-// const player = new Actor();
-// items.set("Игрок", player);
-// items.set("Первая монета", new Actor(new Vector(10, 10)));
-// items.set("Вторая монета", new Actor(new Vector(15, 5)));
+////////////////////////////////////////////
 
-// function position(item) {
-//   return ["left", "top", "right", "bottom"]
-//     .map(side => `${side}: ${item[side]}`)
-//     .join(", ");
-// }
-
-// function movePlayer(x, y) {
-//   player.pos = player.pos.plus(new Vector(x, y));
-// }
-
-// function status(item, title) {
-//   console.log(`${title}: ${position(item)}`);
-//   if (player.isIntersect(item)) {
-//     console.log(`Игрок подобрал ${title}`);
-//   }
-// }
-
-// items.forEach(status);
-// movePlayer(10, 10);
-// items.forEach(status);
-// movePlayer(5, -5);
-// items.forEach(status);
-/////////////////////////////////////////////////////////////////////////////////////////////////
 class Level {
   constructor(grid = [], actors = []) {
     this.actors = actors.slice();
@@ -122,11 +83,9 @@ class Level {
     this.player = this.actors.find(actore => actore.type === "player");
   }
   isFinished() {
-    if (this.status !== null && this.finishDelay < 0) {
-      return true;
-    }
-    return false;
+    return this.status !== null && this.finishDelay < 0;
   }
+
   actorAt(actor) {
     if (!(actor instanceof Actor) || actor === undefined) {
       throw new Error(`Не передан объект типа Actor или нет аргумента `);
@@ -156,9 +115,9 @@ class Level {
         if (this.grid[y][x] === `wall` || this.grid[y][x] === `lava`) {
           return this.grid[y][x];
         }
-      }
-    }
-  }
+      };
+    };
+  };
   removeActor(actor) {
     const actorIndex = this.actors.indexOf(actor);
     if (actorIndex !== -1) {
@@ -166,15 +125,10 @@ class Level {
     }
   }
   noMoreActors(type) {
-    if (this.actors.find(el => el.type === type)) {
-      return false;
-    }
-    return true;
+    return !this.actors.find(el => el.type === type)
   }
   playerTouched(typeofObject, actor) {
-    if (this.status !== null) {
-      return;
-    }
+
     if (typeofObject === `lava` || typeofObject === `fireball`) {
       this.status = `lost`;
     }
@@ -183,46 +137,152 @@ class Level {
       if (this.noMoreActors("coin")) {
         return (this.status = "won");
       }
+    };
+  };
+};
+//////////////////////////////////////////////////////////////////////////////
+class LevelParser {
+  constructor(dictionary = {}) {
+    this.dictionary = dictionary;
+  }
+  actorFromSymbol(symbol) {
+    if (symbol && this.dictionary) {
+      return this.dictionary[symbol];
+    };
+  };
+  obstacleFromSymbol(symbol) {
+    if (symbol === 'x') {
+      return `wall`
     }
+    if (symbol === '!') {
+      return `lava`
+    };
+  };
+  createGrid(arryString) {
+    let arryMap = arryString.map(line => line.split(''))
+    arryMap = arryMap.map(line => line.map(line => this.obstacleFromSymbol(line)));
+    return arryMap
+  }
+  createActors(arryString) {
+    return arryString.reduce((previewElement, currentElement, y) => {
+      currentElement.split('').forEach((itemX, x) => {
+        const objectActor = this.actorFromSymbol(itemX);
+        if (typeof objectActor === 'function') {
+          const actor = new objectActor(new Vector(x, y));
+          if (actor instanceof Actor) {
+            previewElement.push(actor);
+          }
+        }
+      });
+      return previewElement;
+    }, []);
+  };
+
+  parse(arryString) {
+    return new Level(this.createGrid(arryString), this.createActors(arryString));
+  };
+};
+/////////////////////////////////////////////////////////////////////////////////
+class Fireball extends Actor {
+  constructor(pos = new Vector(0, 0), speed = new Vector(0, 0)) {
+    super(pos, new Vector(1, 1), speed);
+  }
+  get type() {
+    return 'fireball';
+  }
+  getNextPosition(time = 1) {
+    return new Vector(this.pos.x + this.speed.x * time, this.pos.y + this.speed.y * time);
+  }
+  handleObstacle() {
+    this.speed = this.speed.times(-1);
+  }
+  act(time, grid) {
+    const nextPos = this.getNextPosition(time);
+    if (grid.obstacleAt(nextPos, this.size)) {
+      this.handleObstacle();
+    } else {
+      this.pos = nextPos
+    };
+  };
+};
+////////////////////////////////////////////////////////////////
+class HorizontalFireball extends Fireball {
+  constructor(pos = new Vector(0, 0)) {
+    super(pos, new Vector(2, 0));
+  };
+};
+/////////////////////////////////////////////////////////////
+class VerticalFireball extends Fireball {
+  constructor(pos = new Vector(0, 0)) {
+    super(pos, new Vector(0, 2));
+  };
+};
+//////////////////////////////////////////////////////////
+class FireRain extends Fireball {
+  constructor(pos = new Vector(0, 0)) {
+    super(pos, new Vector(0, 3));
+    this.startPos = this.pos;
+  }
+  handleObstacle() {
+    this.pos = this.startPos;
+  };
+};
+/////////////////////////////////////////////////////////
+class Coin extends Actor {
+  constructor(pos = new Vector(0, 0)) {
+    super(pos.plus(new Vector(0.2, 0.1)), new Vector(0.6, 0.6));
+    this.spring = Math.random() * (Math.PI * 2);
+    this.springSpeed = 8;
+    this.springDist = 0.07;
+    this.startPos = this.pos;
+  }
+  get type() {
+    return 'coin';
+  }
+
+  updateSpring(time = 1) {
+    this.spring += this.springSpeed * time;
+  }
+
+  getSpringVector() {
+    return new Vector(0, Math.sin(this.spring) * this.springDist)
+  }
+
+  getNextPosition(time = 1) {
+    this.updateSpring(time);
+    return this.startPos.plus(this.getSpringVector());
+  }
+
+  act(time) {
+    this.pos = this.getNextPosition(time);
+  }
+}
+/////////////////////////////////////////////////////////////
+
+class Player extends Actor {
+  constructor(pos = new Vector(0, 0)) {
+    super(pos.plus(new Vector(0, -0.5)), new Vector(0.8, 1.5));
+  }
+
+  get type() {
+    return 'player';
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
+const actorDict = {
+  '@': Player,
+  'v': FireRain,
+  'o': Coin,
+  '=': HorizontalFireball,
+  '|': VerticalFireball
 
-// const grid = [
-//   [undefined, undefined],
-//   ['wall', 'wall']
-// ];
+};
+const pars = new LevelParser(actorDict);
+/////////////////////////////////////////////////////
 
-// function MyCoin(title) {
-//   this.type = 'coin';
-//   this.title = title;
-// }
-// MyCoin.prototype = Object.create(Actor);
-// MyCoin.constructor = MyCoin;
-
-// const goldCoin = new MyCoin('Золото');
-// const bronzeCoin = new MyCoin('Бронза');
-// const player = new Actor();
-// const fireball = new Actor();
-
-// const level = new Level(grid, [ goldCoin, bronzeCoin, player, fireball ]);
-
-// level.playerTouched('coin', goldCoin);
-// level.playerTouched('coin', bronzeCoin);
-
-// if (level.noMoreActors('coin')) {
-//   console.log('Все монеты собраны');
-//   console.log(`Статус игры: ${level.status}`);
-// }
-
-// const obstacle = level.obstacleAt(new Vector(1, 1), player.size);
-// if (obstacle) {
-//   console.log(`На пути препятствие: ${obstacle}`);
-// }
-
-// const otherActor = level.actorAt(player);
-// if (otherActor === fireball) {
-//   console.log('Пользователь столкнулся с шаровой молнией');
-// }
-
+loadLevels()
+  .then((res) => {
+    runGame(JSON.parse(res), pars, DOMDisplay)
+      .then(() => alert('Вы выиграли!'))
+  });
+  ////////////////////////////////////////////////////
