@@ -12,7 +12,7 @@ class Vector {
   }
 
   times(factor) {
-    return new Vector(this.x * factor, this.y * factor);;
+    return new Vector(this.x * factor, this.y * factor);
   }
 }
 //////////////////////////////////////////////////////////////////
@@ -112,26 +112,24 @@ class Level {
 
     for (let x = leftBorder; x < rightBorder; x++) {
       for (let y = topBorder; y < bottomBorder; y++) {
-        if (this.grid[y][x] === `wall` || this.grid[y][x] === `lava`) {
-          return this.grid[y][x];
-        }
+        const gridLevel = this.grid[y][x];
+        if (gridLevel) {
+          return gridLevel;
+        };
       };
     };
   };
   removeActor(actor) {
-    const actorIndex = this.actors.indexOf(actor);
-    if (actorIndex !== -1) {
-      this.actors.splice(actorIndex, 1);
-    }
-  }
+    this.actors = this.actors.filter(act => act !== actor);
+  };
   noMoreActors(type) {
-    return !this.actors.find(el => el.type === type)
-  }
-  playerTouched(typeofObject, actor) {
+    return !this.actors.some(el => el.type === type);
+  };
 
+  playerTouched(typeofObject, actor) {
     if (typeofObject === `lava` || typeofObject === `fireball`) {
       this.status = `lost`;
-    }
+    };
     if (typeofObject === "coin" && actor.type === "coin") {
       this.removeActor(actor);
       if (this.noMoreActors("coin")) {
@@ -143,7 +141,7 @@ class Level {
 //////////////////////////////////////////////////////////////////////////////
 class LevelParser {
   constructor(dictionary = {}) {
-    this.dictionary = dictionary;
+    this.dictionary = Object.assign({}, dictionary);
   }
   actorFromSymbol(symbol) {
     if (symbol && this.dictionary) {
@@ -152,10 +150,10 @@ class LevelParser {
   };
   obstacleFromSymbol(symbol) {
     if (symbol === 'x') {
-      return `wall`
-    }
+      return `wall`;
+    };
     if (symbol === '!') {
-      return `lava`
+      return `lava`;
     };
   };
   createGrid(arryString) {
@@ -285,4 +283,4 @@ loadLevels()
     runGame(JSON.parse(res), pars, DOMDisplay)
       .then(() => alert('Вы выиграли!'))
   });
-  ////////////////////////////////////////////////////
+////////////////////////////////////////////////////
